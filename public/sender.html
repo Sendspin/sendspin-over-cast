@@ -108,12 +108,53 @@
     }
     #status {
       margin-top: 20px;
-      padding: 14px 16px;
+      padding: 16px;
       background: #f1f3f4;
       border-radius: 8px;
       font-size: 14px;
       color: #555;
     }
+    .status-state {
+      font-weight: 600;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #9aa0a6;
+    }
+    .status-dot.connecting { background: #fbbc04; }
+    .status-dot.connected { background: #34a853; }
+    .status-dot.playing { background: #34a853; animation: pulse 1.5s infinite; }
+    .status-dot.stopped { background: #9aa0a6; }
+    .status-dot.error { background: #ea4335; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .status-details {
+      font-size: 13px;
+      color: #666;
+    }
+    .status-sync {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 6px;
+      font-size: 12px;
+      color: #888;
+    }
+    .sync-badge {
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+    .sync-badge.synced { background: #e6f4ea; color: #137333; }
+    .sync-badge.syncing { background: #fef7e0; color: #b06000; }
   </style>
 </head>
 <body>
@@ -145,7 +186,7 @@
 
     <div class="buttons">
       <button id="castBtn" onclick="startCasting()" disabled>Cast to Device</button>
-      <button id="stopBtn" onclick="stopCasting()" disabled>Stop</button>
+      <button id="stopBtn" onclick="stopCasting()" disabled>Stop Casting</button>
     </div>
 
     <div id="status">Loading Cast SDK...</div>
@@ -168,6 +209,60 @@
       if (!ip) return null;
       localStorage.setItem('resonate_server_ip', ip);
       return `http://${ip}:8927`;
+    }
+
+    function setStatus(text) {
+      document.getElementById('status').innerHTML = text;
+    }
+
+    function updateStatus(data) {
+      const stateLabels = {
+        connecting: 'Connecting...',
+        connected: 'Connected',
+        playing: 'Playing',
+        stopped: 'Stopped',
+        error: 'Error'
+      };
+
+      const showVolume = data.volume !== undefined && (data.state === 'playing' || data.state === 'stopped');
+
+      let html = `<div class="status-state">
+        <span class="status-dot ${data.state}"></span>
+        ${stateLabels[data.state] || data.state}
+        ${showVolume ? `<span style="margin-left: auto; font-weight: normal; color: #666;">Volume: ${data.volume}%${data.muted ? ' (muted)' : ''}</span>` : ''}
+      </div>`;
+
+      if (data.message) {
+        html += `<div class="status-details">${data.message}</div>`;
+      }
+
+      if (data.sync) {
+        if (data.sync.synced) {
+          html += `<div class="status-sync">
+            <span class="sync-badge synced">Synced</span>
+            <span>${data.sync.offset > 0 ? '+' : ''}${data.sync.offset}ms ±${data.sync.error}ms</span>
+          </div>`;
+        } else {
+          html += `<div class="status-sync">
+            <span class="sync-badge syncing">Syncing...</span>
+          </div>`;
+        }
+      }
+
+      setStatus(html);
+    }
+
+    function setupMessageListener() {
+      if (!castSession) return;
+      castSession.addMessageListener(CAST_NAMESPACE, (namespace, message) => {
+        console.log('Received from receiver:', message);
+        if (typeof message === 'string') {
+          try { message = JSON.parse(message); } catch(e) {}
+        }
+        if (message && message.state) {
+          updateStatus(message);
+        }
+      });
     }
 
     window['__onGCastApiAvailable'] = function(isAvailable) {
@@ -196,19 +291,19 @@
               document.getElementById('stopBtn').disabled = false;
               document.getElementById('castBtn').disabled = true;
 
+              // Listen for messages from receiver
+              setupMessageListener();
+
               // Send server URL to receiver
               const serverUrl = getServerUrl();
-              const ip = document.getElementById('serverIp').value.trim();
               if (serverUrl) {
+                updateStatus({ state: 'connecting', message: 'Starting receiver...' });
                 castSession.sendMessage(CAST_NAMESPACE, { serverUrl })
-                  .then(() => {
-                    document.getElementById('status').textContent = 'Connected! Connecting to ws://' + ip + ':8927/resonate';
-                  })
                   .catch((err) => {
-                    document.getElementById('status').textContent = 'Connected but failed to send config: ' + err;
+                    updateStatus({ state: 'error', message: 'Failed to send config: ' + err });
                   });
               } else {
-                document.getElementById('status').textContent = 'Connected but no server IP configured!';
+                updateStatus({ state: 'error', message: 'No server IP configured' });
               }
             } else if (state === cast.framework.SessionState.SESSION_ENDED) {
               castSession = null;

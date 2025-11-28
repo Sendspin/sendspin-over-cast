@@ -10,6 +10,22 @@ declare global {
 
 const CAST_NAMESPACE = "urn:x-cast:resonate";
 
+// Cast context for sending messages back to sender
+let castContext: any = null;
+
+// Send status update to sender
+function sendStatusToSender(status: {
+  state: "connecting" | "connected" | "playing" | "stopped" | "error";
+  message?: string;
+  sync?: { synced: boolean; offset?: number; error?: number };
+  volume?: number;
+  muted?: boolean;
+}) {
+  if (castContext) {
+    castContext.sendCustomMessage(CAST_NAMESPACE, undefined, status);
+  }
+}
+
 // Generate or get player ID (persisted in localStorage)
 function getPlayerId(): string {
   const params = new URLSearchParams(window.location.search);
@@ -47,12 +63,20 @@ function updateDebug(player: ResonatePlayer) {
   window.setDebug?.(debugText);
 }
 
+// Track current player state for periodic updates
+let currentPlayerState: {
+  isPlaying: boolean;
+  volume: number;
+  muted: boolean;
+} = { isPlaying: false, volume: 100, muted: false };
+
 // Connect to Resonate server
 async function connectToServer(baseUrl: string) {
   const playerId = getPlayerId();
 
   console.log("Resonate: Connecting to", baseUrl, "as", playerId);
-  window.setStatus?.("Connecting to " + baseUrl);
+  window.setStatus?.("Connecting...");
+  sendStatusToSender({ state: "connecting", message: "Connecting to server..." });
 
   const player = new ResonatePlayer({
     playerId,
@@ -67,6 +91,12 @@ async function connectToServer(baseUrl: string) {
       { codec: "pcm", sample_rate: 44100, channels: 2, bit_depth: 16 },
     ],
     onStateChange: (state) => {
+      currentPlayerState = {
+        isPlaying: state.isPlaying,
+        volume: state.volume,
+        muted: state.muted,
+      };
+      const sync = player.timeSyncInfo;
       if (state.isPlaying) {
         window.setStatus?.(
           `Playing · Volume: ${state.volume}%${state.muted ? " (muted)" : ""}`,
@@ -74,6 +104,7 @@ async function connectToServer(baseUrl: string) {
       } else {
         window.setStatus?.("Stopped");
       }
+      sendPlayerStatus(player);
       updateDebug(player);
     },
   });
@@ -82,16 +113,32 @@ async function connectToServer(baseUrl: string) {
     await player.connect();
     console.log("Resonate: Connected - waiting for stream...");
     window.setStatus?.("Connected · Waiting for stream");
+    sendStatusToSender({ state: "connected", message: "Waiting for stream..." });
 
-    // Periodically update debug info
-    setInterval(() => updateDebug(player), 1000);
+    // Periodically send status to sender
+    setInterval(() => {
+      updateDebug(player);
+      sendPlayerStatus(player);
+    }, 1000);
   } catch (error) {
     console.error("Resonate: Connection failed:", error);
     window.setStatus?.("Connection failed");
+    sendStatusToSender({ state: "error", message: "Connection failed" });
   }
 
   // Expose player globally for debugging
   (window as any).player = player;
+}
+
+// Send current player status to sender
+function sendPlayerStatus(player: ResonatePlayer) {
+  const sync = player.timeSyncInfo;
+  sendStatusToSender({
+    state: currentPlayerState.isPlaying ? "playing" : "stopped",
+    volume: currentPlayerState.volume,
+    muted: currentPlayerState.muted,
+    sync: { synced: sync.synced, offset: sync.offset, error: sync.error },
+  });
 }
 
 // Detect if running on a Chromecast device (user agent contains "CrKey")
@@ -116,6 +163,9 @@ function initCastReceiver() {
     window.setStatus?.("Cast SDK error");
     return;
   }
+
+  // Store context for sending messages back to sender
+  castContext = context;
 
   console.log("Resonate: Initializing Cast Receiver...");
   window.setStatus?.("Waiting for sender...");
