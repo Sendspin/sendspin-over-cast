@@ -184,6 +184,12 @@
       <small>Connects via WebSocket to ws://&lt;ip&gt;:8927/resonate</small>
     </div>
 
+    <div class="server-config" style="margin-top: 16px;">
+      <label for="syncDelay">Sync Delay (ms)</label>
+      <input type="number" id="syncDelay" placeholder="0" value="0" style="width: 100px;">
+      <small>Positive delays playback, negative advances it. Adjust to sync with other speakers.</small>
+    </div>
+
     <div class="buttons">
       <button id="castBtn" onclick="startCasting()" disabled>Cast to Device</button>
       <button id="stopBtn" onclick="stopCasting()" disabled>Stop Casting</button>
@@ -198,10 +204,14 @@
     let castContext = null;
     let castSession = null;
 
-    // Load saved IP from localStorage
+    // Load saved settings from localStorage
     const savedIp = localStorage.getItem('resonate_server_ip');
     if (savedIp) {
       document.getElementById('serverIp').value = savedIp;
+    }
+    const savedSyncDelay = localStorage.getItem('resonate_sync_delay');
+    if (savedSyncDelay) {
+      document.getElementById('syncDelay').value = savedSyncDelay;
     }
 
     function getServerUrl() {
@@ -209,6 +219,12 @@
       if (!ip) return null;
       localStorage.setItem('resonate_server_ip', ip);
       return `http://${ip}:8927`;
+    }
+
+    function getSyncDelay() {
+      const delay = parseInt(document.getElementById('syncDelay').value, 10) || 0;
+      localStorage.setItem('resonate_sync_delay', delay.toString());
+      return delay;
     }
 
     function setStatus(text) {
@@ -294,11 +310,12 @@
               // Listen for messages from receiver
               setupMessageListener();
 
-              // Send server URL to receiver
+              // Send server URL and config to receiver
               const serverUrl = getServerUrl();
+              const syncDelay = getSyncDelay();
               if (serverUrl) {
                 updateStatus({ state: 'connecting', message: 'Starting receiver...' });
-                castSession.sendMessage(CAST_NAMESPACE, { serverUrl })
+                castSession.sendMessage(CAST_NAMESPACE, { serverUrl, syncDelay })
                   .catch((err) => {
                     updateStatus({ state: 'error', message: 'Failed to send config: ' + err });
                   });
