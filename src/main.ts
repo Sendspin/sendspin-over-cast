@@ -42,6 +42,7 @@ function sendStatusToSender(status: {
   state: "connecting" | "connected" | "playing" | "stopped" | "error";
   message?: string;
   sync?: { synced: boolean; offset?: number; error?: number };
+  syncInfo?: { clockDriftPercent: number; syncErrorMs: number; resyncCount: number };
   volume?: number;
   muted?: boolean;
 }) {
@@ -85,11 +86,18 @@ function getPlayerId(): string {
 // Update debug info
 function updateDebug(player: ResonatePlayer) {
   const sync = player.timeSyncInfo;
+  const info = player.syncInfo;
   const format = player.currentFormat;
 
   let debugText = sync.synced
-    ? `sync: ${sync.offset}ms ±${sync.error}ms`
+    ? `offset: ${sync.offset}ms ±${sync.error}ms`
     : "sync: waiting...";
+
+  // Add sync info: clock drift, sync error, resync count
+  const driftSign = info.clockDriftPercent >= 0 ? "+" : "";
+  debugText += ` · drift: ${driftSign}${info.clockDriftPercent.toFixed(2)}%`;
+  debugText += ` · error: ${info.syncErrorMs.toFixed(1)}ms`;
+  debugText += ` · resyncs: ${info.resyncCount}`;
 
   if (format) {
     debugText += ` · ${format.codec} ${format.sample_rate / 1000}kHz/${format.bit_depth || 16}bit`;
@@ -174,12 +182,14 @@ async function connectToServer(baseUrl: string) {
 // Send current player status to sender
 function sendPlayerStatus(player: ResonatePlayer) {
   const sync = player.timeSyncInfo;
+  const info = player.syncInfo;
   const hwVol = getHardwareVolume();
   sendStatusToSender({
     state: currentPlayerState.isPlaying ? "playing" : "stopped",
     volume: hwVol.volume,
     muted: hwVol.muted,
     sync: { synced: sync.synced, offset: sync.offset, error: sync.error },
+    syncInfo: info,
   });
 }
 
