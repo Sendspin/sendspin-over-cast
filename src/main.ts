@@ -141,6 +141,7 @@ async function connectToServer(baseUrl: string) {
     useHardwareVolume: true,
     onVolumeCommand: setHardwareVolume,
     getExternalVolume: getHardwareVolume,
+    useOutputLatencyCompensation: true,
     onStateChange: (state) => {
       currentPlayerState = {
         isPlaying: state.isPlaying,
