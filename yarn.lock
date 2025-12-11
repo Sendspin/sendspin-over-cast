@@ -132,10 +132,12 @@
   resolved "https://registry.yarnpkg.com/@esbuild/win32-x64/-/win32-x64-0.25.12.tgz#9bdad8176be7811ad148d1f8772359041f46c6c5"
   integrity sha512-alJC0uCZpTFrSL0CCDjcgleBXPnCrEAhTBILpeAp7M/OFgoqtAetfBzX0xM00MUsVVPpVjlPuMbREqnZCXaTnA==
 
-"@music-assistant/sendspin-js@0.3.1":
-  version "0.3.1"
-  resolved "https://registry.yarnpkg.com/@music-assistant/sendspin-js/-/sendspin-js-0.3.1.tgz#50bfd90554720f66edabe697c19030f8fc040c42"
-  integrity sha512-R5F+FZ9qBcoMi3U/aH4Kp52H/4yRB/GZrantZgTzbEGTdwsrlECHLP/xo05Cc+X4sladaEc3GiYyPFaYPNy1cg==
+"@music-assistant/sendspin-js@0.4.1":
+  version "0.4.1"
+  resolved "https://registry.yarnpkg.com/@music-assistant/sendspin-js/-/sendspin-js-0.4.1.tgz#c3949c469c48978b1339ce556eb0cc1e180a7826"
+  integrity sha512-6RywDQgf3PUDQAeK+OjQZDxIzvkWc2ILkvIakELPTHWlTl4wgquLxHtug2CZxrVZ5zlYnQHXSNwP3pux6ZoxWw==
+  dependencies:
+    opus-encdec "^0.1.1"
 
 "@rollup/rollup-android-arm-eabi@4.53.3":
   version "4.53.3"
@@ -298,6 +300,11 @@ nanoid@^3.3.11:
   version "3.3.11"
   resolved "https://registry.yarnpkg.com/nanoid/-/nanoid-3.3.11.tgz#4f4f112cefbe303202f2199838128936266d185b"
   integrity sha512-N8SpfPUnUp1bK+PMYW8qSWdl9U+wwNWI4QKxOYDy9JAro3WMX7p2OeVRF9v+347pnakNevPmiHhNmZ2HbFA76w==
+
+opus-encdec@^0.1.1:
+  version "0.1.1"
+  resolved "https://registry.yarnpkg.com/opus-encdec/-/opus-encdec-0.1.1.tgz#8b6f9ccbb2e97bc0ae0dac2966111937b6aedcf9"
+  integrity sha512-TDzyGqYqrwn5UEUNaLsfLGu8Ma+HRNrgLYj7Vx5wfTnafAA21G6Bnm/qTIa3orQi/yZPZYmkdpO/gez4nfA1Rw==
 
 picocolors@^1.1.1:
   version "1.1.1"
